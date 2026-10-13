@@ -1,0 +1,156 @@
+@import url("https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800,900&f[]=satoshi@400,500,700,900&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+    :root {
+        /* Skiller light – white / black / Indian red */
+        --background: 0 0% 100%;
+        --foreground: 222 47% 6%;
+        --card: 0 0% 100%;
+        --card-foreground: 222 47% 6%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222 47% 6%;
+        /* Indian red #B91C1C */
+        --primary: 0 74% 42%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 0 0% 96%;
+        --secondary-foreground: 0 0% 11%;
+        --muted: 0 0% 96%;
+        --muted-foreground: 215 16% 47%;
+        --accent: 0 0% 96%;
+        --accent-foreground: 0 0% 11%;
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 0 0% 91%;
+        --input: 0 0% 91%;
+        --ring: 0 74% 42%;
+        --radius: 0.75rem;
+    }
+    .dark {
+        --background: 0 0% 4%;
+        --foreground: 0 0% 98%;
+        --card: 0 0% 7%;
+        --card-foreground: 0 0% 98%;
+        --popover: 0 0% 7%;
+        --popover-foreground: 0 0% 98%;
+        /* Indian red dark variant #DC2626 */
+        --primary: 0 72% 51%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 0 0% 12%;
+        --secondary-foreground: 0 0% 98%;
+        --muted: 0 0% 12%;
+        --muted-foreground: 240 5% 65%;
+        --accent: 0 0% 12%;
+        --accent-foreground: 0 0% 98%;
+        --destructive: 0 63% 45%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 0 0% 15%;
+        --input: 0 0% 15%;
+        --ring: 0 72% 51%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+        transition:
+            background-color 0.3s ease,
+            color 0.3s ease;
+    }
+}
+
+@layer utilities {
+    .font-display {
+        font-family: "Cabinet Grotesk", "Satoshi", ui-sans-serif, system-ui,
+            sans-serif;
+        font-feature-settings: "ss01", "ss02";
+    }
+    .font-body {
+        font-family: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+    }
+    .glass {
+        backdrop-filter: saturate(180%) blur(16px);
+        -webkit-backdrop-filter: saturate(180%) blur(16px);
+        background: hsl(var(--background) / 0.72);
+    }
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        scrollbar-width: none;
+    }
+    .grid-dot-bg {
+        background-image: radial-gradient(
+            hsl(var(--border)) 1px,
+            transparent 1px
+        );
+        background-size: 22px 22px;
+    }
+}
+
+@keyframes skiller-fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-up {
+    animation: skiller-fade-up 0.5s ease both;
+}
+
+@keyframes skiller-pop {
+    0% {
+        transform: scale(0.9);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.animate-pop {
+    animation: skiller-pop 0.35s ease;
+}
+
+@layer base {
+    [data-debug-wrapper="true"] {
+        display: contents !important;
+    }
+
+    [data-debug-wrapper="true"] > * {
+        margin-left: inherit;
+        margin-right: inherit;
+        margin-top: inherit;
+        margin-bottom: inherit;
+        padding-left: inherit;
+        padding-right: inherit;
+        padding-top: inherit;
+        padding-bottom: inherit;
+    }
+}

@@ -1,0 +1,332 @@
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from models.user import User
+from sqlalchemy import func
+from models.user_follow import UserFollow
+
+from sqlalchemy import select
+from models.user import User
+
+
+
+class UserService:
+
+    @staticmethod
+    async def get_user(
+        db: AsyncSession,
+        user_id: str
+    ):
+        result = await db.execute(
+            select(User)
+            .where(User.id == user_id)
+        )
+
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_user_by_email(
+        db: AsyncSession,
+        email: str
+    ):
+        result = await db.execute(
+            select(User)
+            .where(User.email == email)
+        )
+
+        return result.scalar_one_or_none()
+
+
+    @staticmethod
+    async def create_user(
+        db: AsyncSession,
+        **kwargs
+    ):
+        user = User(**kwargs)
+
+        db.add(user)
+
+        await db.commit()
+        await db.refresh(user)
+
+        return user
+
+    @staticmethod
+    async def update_user(
+        db: AsyncSession,
+        user: User,
+        updates: dict
+    ):
+        for key, value in updates.items():
+            setattr(user, key, value)
+
+        await db.commit()
+        await db.refresh(user)
+
+        return user
+
+    @staticmethod
+    async def list_users(
+        db: AsyncSession
+    ):
+        result = await db.execute(
+            select(User)
+            .order_by(User.created_at.desc())
+        )
+
+        return result.scalars().all()
+    
+    @staticmethod
+    async def get_all_users(
+        db: AsyncSession
+    ):
+        result = await db.execute(
+            select(User)
+            .order_by(User.created_at.desc())
+        )
+
+        return result.scalars().all()
+
+
+    @staticmethod
+    async def get_user_by_username(
+        db: AsyncSession,
+        username: str
+    ):
+        result = await db.execute(
+            select(User)
+            .where(User.username == username)
+        )
+
+        return result.scalar_one_or_none()
+    
+    @staticmethod
+    async def get_leaderboard(
+        db: AsyncSession,
+        limit: int = 20
+    ):
+        result = await db.execute(
+            select(User)
+            .order_by(User.xp.desc())
+            .limit(limit)
+        )
+
+        return result.scalars().all()
+    
+    @staticmethod
+    async def increment_xp(
+        db: AsyncSession,
+        user: User,
+        amount: int
+    ):
+        user.xp += amount
+
+        await db.commit()
+
+        await db.refresh(user)
+
+        return user
+    
+
+    @staticmethod
+    async def get_user_dict(
+        db: AsyncSession,
+        user_id: str
+    ):
+        result = await db.execute(
+            select(User)
+            .where(User.id == user_id)
+        )
+
+        user = result.scalar_one_or_none()
+
+        if not user:
+            return None
+
+        return {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "name": user.name,
+            "bio": user.bio,
+            "avatar_url": user.avatar_url,
+            "role": user.role,
+            "xp": user.xp,
+            "badges": user.badges or [],
+            "streak": user.streak,
+            "email_verified": user.email_verified,
+            "referral_code": user.referral_code,
+            "referred_by": user.referred_by,
+            "plan": user.plan,
+            "premium_until": (
+                user.premium_until.isoformat()
+                if user.premium_until
+                else None
+            ),
+            "created_at": (
+                user.created_at.isoformat()
+                if user.created_at
+                else None
+            )
+        }
+        
+        
+    @staticmethod
+    async def get_followers_count(
+        db: AsyncSession,
+        user_id: str
+    ):
+        
+        result = await db.execute(
+            select(
+                func.count(UserFollow.id)
+            ).where(
+                UserFollow.following_id == user_id
+            )
+        )
+
+        return result.scalar() or 0
+        
+        
+    @staticmethod
+    async def get_user_summary(
+        db: AsyncSession,
+        user_id: str
+    ):
+        result = await db.execute(
+            select(User)
+            .where(User.id == user_id)
+        )
+
+        user = result.scalar_one_or_none()
+
+        if not user:
+            return None
+
+        return {
+            "id": user.id,
+            "username": user.username,
+            "name": user.name,
+            "email": user.email,
+            "avatar_url": user.avatar_url,
+        }
+        
+    @staticmethod
+    async def update_plan(
+        db: AsyncSession,
+        user: User,
+        plan: str,
+        premium_until
+    ):
+        user.plan = plan
+        user.premium_until = premium_until
+
+        await db.commit()
+        return user
+    
+    @staticmethod
+    async def list_creators(
+        db,
+        exclude_user_id: str,
+        limit: int = 20
+    ):
+        result = await db.execute(
+            select(User)
+            .where(User.id != exclude_user_id)
+            .limit(limit)
+        )
+
+        return result.scalars().all()
+        
+        
+    @staticmethod
+    async def get_users_by_ids(
+        db,
+        user_ids: list[str]
+    ):
+        result = await db.execute(
+            select(User)
+            .where(User.id.in_(user_ids))
+        )
+
+        return result.scalars().all()
+
+
+
+    @staticmethod
+    async def get_following_ids(
+        db,
+        follower_id: str
+    ):
+        result = await db.execute(
+            select(UserFollow.following_id)
+            .where(
+                UserFollow.follower_id == follower_id
+            )
+        )
+
+        return list(result.scalars().all())
+    
+    @staticmethod
+    async def get_creators(db, limit: int = 2000):
+        result = await db.execute(
+            select(User)
+            .where(User.role.in_(["creator", "admin"]))
+            .limit(limit)
+        )
+        return result.scalars().all()
+    
+    @staticmethod
+    async def follower_count(
+        db,
+        user_id: str
+    ):
+        result = await db.execute(
+            select(func.count())
+            .select_from(UserFollow)
+            .where(
+                UserFollow.following_id == user_id
+            )
+        )
+
+        return result.scalar() or 0
+    
+    @staticmethod
+    async def get_user_by_referral_code(
+        db: AsyncSession,
+        referral_code: str
+    ):
+        result = await db.execute(
+            select(User)
+            .where(User.referral_code == referral_code)
+        )
+
+        return result.scalar_one_or_none()
+    
+    @staticmethod
+    async def update_streak(
+        db: AsyncSession,
+        user: User,
+        streak: int,
+        last_login_date
+    ):
+        user.streak = streak
+        user.last_login_date = last_login_date
+
+        await db.commit()
+        await db.refresh(user)
+
+        return user
+    
+    @staticmethod
+    async def update_password(
+        db: AsyncSession,
+        user: User,
+        password_hash: str
+    ):
+        user.password_hash = password_hash
+
+        await db.commit()
+        await db.refresh(user)
+
+        return user
