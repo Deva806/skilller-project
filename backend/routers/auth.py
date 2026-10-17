@@ -1308,16 +1308,12 @@ async def login(
     pg_db: AsyncSession = Depends(get_db)
 ):
     """
-    Login step 1.
+    Login behavior:
+      - Development/local: email + password -> immediate JWT login.
+      - Production: email + password -> login OTP -> JWT after OTP verification.
 
-    Admin accounts:
-        Email + password -> immediate JWT login.
-
-    Student/creator accounts:
-        Email + password -> login OTP -> JWT after OTP verification.
-
-    Registration OTP, forgot-password OTP, and change-password OTP
-    flows remain unchanged.
+    Registration OTP, forgot-password OTP, and change-password OTP flows
+    remain unchanged.
     """
     email = data.email.lower().strip()
 
@@ -1335,13 +1331,15 @@ async def login(
             detail="Invalid email or password"
         )
 
-    # --------------------------------------------------------
-    # ADMIN LOGIN — NO EMAIL OTP FOR TESTING
-    # --------------------------------------------------------
-    # Admin is authenticated using email + password only.
-    # This is intentionally limited to role="admin" so that
-    # student and creator login security is not changed.
-    if user.role == "admin":
+    # Only bypass login OTP in explicitly configured local development.
+    # Never infer development mode from the request host or frontend URL.
+    is_development = str(APP_ENV).strip().lower() in {
+        "dev",
+        "development",
+        "local",
+    }
+
+    if is_development:
         await update_streak_on_login(
             user.id,
             pg_db
@@ -1357,12 +1355,10 @@ async def login(
             "otp_required": False,
             "token": token,
             "user": await get_user_by_id(user.id),
-            "message": "Admin login successful",
+            "message": "Development login successful",
         }
 
-    # --------------------------------------------------------
-    # STUDENT / CREATOR LOGIN — EXISTING OTP FLOW
-    # --------------------------------------------------------
+    # Production: all account roles must verify login OTP, including admins.
     try:
         otp = await create_otp(
             user_id=user.id,
@@ -1380,8 +1376,7 @@ async def login(
             ),
         )
 
-        # Do NOT tell frontend that OTP was sent if
-        # Resend failed.
+        # Do not tell the frontend that an OTP was sent if delivery failed.
         if not email_sent:
             await db.email_otps.update_many(
                 {
@@ -1413,7 +1408,7 @@ async def login(
             f"Login OTP dispatch failed: {e}"
         )
 
-        # Invalidate OTP if email sending failed
+        # Invalidate any newly created, unused login OTP if email sending failed.
         try:
             await db.email_otps.update_many(
                 {
@@ -1435,11 +1430,7 @@ async def login(
             detail="Could not send login OTP"
         )
 
-    # --------------------------------------------------------
-    # IMPORTANT:
-    # No access token is issued here for students/creators.
-    # They must verify the login OTP first.
-    # --------------------------------------------------------
+    # No access token is issued in production until OTP verification succeeds.
     return {
         "otp_required": True,
         "user_id": user.id,
