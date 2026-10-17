@@ -55,9 +55,6 @@ from routers import withdrawals
 from routers import payout_accounts
 
 # Admin workflows.
-from routers.admin_withdrawals import (
-    router as admin_withdrawals_router,
-)
 from routers.admin import router as admin_router
 
 # Other existing features.
@@ -148,7 +145,6 @@ app.include_router(wallets.router)
 app.include_router(withdrawals.router)
 
 # Admin withdrawal list and PATCH approve/reject endpoints.
-app.include_router(admin_withdrawals_router)
 
 # Enrollments and lessons.
 app.include_router(enrollments_router)
