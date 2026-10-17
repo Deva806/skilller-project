@@ -33,3 +33,4 @@ uvicorn[standard]
 websockets
 openai
 greenlet
+psycopg[binary]
