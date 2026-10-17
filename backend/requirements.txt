@@ -32,3 +32,4 @@ stripe
 uvicorn[standard]
 websockets
 openai
+greenlet
