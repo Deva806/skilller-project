@@ -1,3 +1,4 @@
+
 aiohttp
 alembic
 asyncpg
@@ -25,6 +26,7 @@ razorpay
 requests
 resend
 SQLAlchemy
+slowapi
 starlette
 stripe
 uvicorn[standard]

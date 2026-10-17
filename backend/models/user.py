@@ -1,3 +1,4 @@
+
 import uuid
 from datetime import datetime
 
@@ -6,7 +7,7 @@ from sqlalchemy import (
     Boolean,
     Integer,
     DateTime,
-    Text
+    Text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
@@ -20,92 +21,111 @@ class User(Base):
     id: Mapped[str] = mapped_column(
         String,
         primary_key=True,
-        default=lambda: str(uuid.uuid4())
+        default=lambda: str(uuid.uuid4()),
     )
 
     email: Mapped[str] = mapped_column(
         String,
         unique=True,
-        nullable=False
+        nullable=False,
+        index=True,
     )
 
     username: Mapped[str] = mapped_column(
         String,
         unique=True,
-        nullable=False
+        nullable=False,
+        index=True,
     )
 
     name: Mapped[str] = mapped_column(
         String,
-        nullable=False
+        nullable=False,
     )
 
     password_hash: Mapped[str] = mapped_column(
         String,
-        nullable=False
+        nullable=False,
     )
 
     bio: Mapped[str] = mapped_column(
         Text,
-        default=""
+        default="",
+        nullable=False,
     )
 
     avatar_url: Mapped[str] = mapped_column(
         String,
-        default=""
+        default="",
+        nullable=False,
     )
 
     role: Mapped[str] = mapped_column(
         String,
-        default="student"
+        default="student",
+        nullable=False,
     )
 
     xp: Mapped[int] = mapped_column(
         Integer,
-        default=0
+        default=0,
+        nullable=False,
     )
 
     streak: Mapped[int] = mapped_column(
         Integer,
-        default=0
+        default=0,
+        nullable=False,
     )
 
-    badges: Mapped[list] = mapped_column(
+    badges: Mapped[list[str]] = mapped_column(
         ARRAY(String),
-        default=[]
+        default=list,
+        nullable=False,
     )
 
     email_verified: Mapped[bool] = mapped_column(
         Boolean,
-        default=False
+        default=False,
+        nullable=False,
     )
 
-    referral_code: Mapped[str] = mapped_column(
+    referral_code: Mapped[str | None] = mapped_column(
         String,
-        nullable=True
+        nullable=True,
     )
 
-    referred_by: Mapped[str] = mapped_column(
+    referred_by: Mapped[str | None] = mapped_column(
         String,
-        nullable=True
+        nullable=True,
     )
 
     plan: Mapped[str] = mapped_column(
         String,
-        default="trial"
+        default="trial",
+        nullable=False,
     )
 
-    premium_until: Mapped[datetime] = mapped_column(
+    premium_until: Mapped[datetime | None] = mapped_column(
         DateTime,
-        nullable=True
+        nullable=True,
     )
 
-    last_login_date: Mapped[str] = mapped_column(
+    last_login_date: Mapped[str | None] = mapped_column(
         String,
-        nullable=True
+        nullable=True,
+    )
+
+    # Increment to invalidate previously issued JWT access tokens.
+    token_version: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.utcnow
+        default=datetime.utcnow,
+        nullable=False,
     )

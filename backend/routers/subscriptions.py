@@ -50,6 +50,10 @@ async def start_trial(
 
     return subscription
 
+from datetime import datetime
+from core import get_current_user
+from services.user_service import UserService
+
 @router.get("/{user_id}")
 async def get_subscription(
     user_id: str,
@@ -75,4 +79,28 @@ async def get_subscription(
             subscription
         )
     }
+
+
+@router.post("/cancel")
+@router.post("/{user_id}/cancel")
+async def cancel_subscription(
+    user_id: str = None,
+    current=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    target_id = user_id or current["id"]
+    if target_id != current["id"] and current.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    sub = await SubscriptionService.cancel_subscription(db, target_id)
+    user = await UserService.get_user(db, target_id)
+    if user:
+        await UserService.update_plan(db, user, "free", datetime.utcnow())
+
+    return {
+        "ok": True,
+        "status": "cancelled",
+        "message": "Subscription cancelled cleanly."
+    }
+
 

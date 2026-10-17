@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import String, Integer, DateTime, Numeric
+
+from sqlalchemy import String, DateTime, Numeric
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.session import Base
@@ -16,15 +17,34 @@ class PaymentTransaction(Base):
         default=lambda: str(uuid.uuid4())
     )
 
-    payer_id: Mapped[str] = mapped_column(String, nullable=False)
+    payer_id: Mapped[str] = mapped_column(
+        String,
+        nullable=False
+    )
 
-    payee_id: Mapped[str] = mapped_column(String, nullable=True)
+    payee_id: Mapped[str] = mapped_column(
+        String,
+        nullable=True
+    )
 
-    amount: Mapped[Decimal] = mapped_column(Numeric(12,2), nullable=False)
+    # Total amount paid by the student/customer
+    amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        nullable=False
+    )
 
+    # Platform commission (10%)
     commission_amount: Mapped[Decimal] = mapped_column(
-        Numeric(12,2),
-        default=0
+        Numeric(12, 2),
+        default=0,
+        nullable=False
+    )
+
+    # Amount that belongs to the creator (90%)
+    creator_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        default=0,
+        nullable=False
     )
 
     transaction_type: Mapped[str] = mapped_column(
@@ -40,6 +60,7 @@ class PaymentTransaction(Base):
         nullable=False
     )
     # razorpay
+    # manual
 
     provider_order_id: Mapped[str] = mapped_column(
         String,
@@ -50,15 +71,15 @@ class PaymentTransaction(Base):
         String,
         nullable=True
     )
-    
+
     plan_id: Mapped[str] = mapped_column(
-    String,
-    nullable=True
+        String,
+        nullable=True
     )
-    
+
     course_id: Mapped[str] = mapped_column(
-    String,
-    nullable=True
+        String,
+        nullable=True
     )
 
     status: Mapped[str] = mapped_column(

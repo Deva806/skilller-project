@@ -12,6 +12,7 @@ from core import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.dependencies import get_db
+from services.wallet_service import WalletService
 from services.user_service import UserService
 
 router = APIRouter(prefix="/api/wallet", tags=["wallet"])
@@ -42,6 +43,13 @@ async def my_wallet(current=Depends(get_current_user),
     rewarded_count = sum(1 for r in referrals if r.get("status") == "rewarded")
     pending_count = sum(1 for r in referrals if r.get("status") == "pending")
 
+    # financial wallet for earnings / withdrawals
+    fin_wallet = await WalletService.get_or_create_wallet(
+        pg_db,
+        current["id"],
+        current["role"]
+    )
+
     # enrich referrals with referee usernames
     referee_ids = [r["referred_user_id"] for r in referrals]
     users = await UserService.get_users_by_ids(
@@ -57,14 +65,21 @@ async def my_wallet(current=Depends(get_current_user),
         }
         for u in users
     }
-    
+
     for r in referrals:
         r["referred"] = by_id.get(r["referred_user_id"])
 
     return {
         "wallet": wallet or {"balance": 0, "lifetime_earned": 0, "lifetime_spent": 0},
+        "financial_wallet": {
+            "id": fin_wallet.id,
+            "balance": float(fin_wallet.balance or 0),
+            "pending_balance": float(fin_wallet.pending_balance or 0),
+            "lifetime_earned": float(fin_wallet.lifetime_earned or 0),
+            "lifetime_withdrawn": float(fin_wallet.lifetime_withdrawn or 0),
+        },
         "ledger": ledger,
-        "referral_code": user.referral_code,
+        "referral_code": user.referral_code if user else "",
         "reward_per_referral": REFERRAL_REWARD_TOKENS,
         "referrals": referrals,
         "stats": {
@@ -126,5 +141,5 @@ async def referral_link(current=Depends(get_current_user),
     user = await UserService.get_user(
         pg_db,
         current["id"]
-    )    
+    )
     return {"code": user.referral_code}

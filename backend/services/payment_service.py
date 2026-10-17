@@ -15,13 +15,15 @@ class PaymentService:
         payment_provider: str,
         payee_id: str = None,
         plan_id: str = None,
-        commission_amount: int = 0
+        commission_amount: int = 0,
+        creator_amount: int = 0
     ):
         transaction = PaymentTransaction(
             payer_id=payer_id,
             payee_id=payee_id,
             amount=amount,
             commission_amount=commission_amount,
+            creator_amount=creator_amount,
             transaction_type=transaction_type,
             payment_provider=payment_provider,
             plan_id=plan_id,
@@ -29,8 +31,7 @@ class PaymentService:
         )
 
         db.add(transaction)
-
-        await db.commit()
+        await db.flush()
         await db.refresh(transaction)
 
         return transaction
@@ -48,17 +49,16 @@ class PaymentService:
         )
 
         return result.scalar_one_or_none()
-    
+
     @staticmethod
     async def get_transaction_by_order_id(
-    db: AsyncSession,
-    order_id: str
+        db: AsyncSession,
+        order_id: str
     ):
         result = await db.execute(
             select(PaymentTransaction)
             .where(
-                PaymentTransaction.provider_order_id
-                == order_id
+                PaymentTransaction.provider_order_id == order_id
             )
         )
 
@@ -86,7 +86,7 @@ class PaymentService:
     ):
         transaction.status = "failed"
 
-        await db.commit()
+        await db.flush()
 
         return transaction
 
@@ -94,20 +94,19 @@ class PaymentService:
     async def create_subscription_transaction(
         db: AsyncSession,
         payer_id: str,
-        plan_id:str,
+        plan_id: str,
         amount: int,
         payment_provider: str
     ):
-        
         return await PaymentService.create_transaction(
-        db=db,
-        payer_id=payer_id,
-        plan_id=plan_id,
-        amount=amount,
-        transaction_type="subscription",
-        payment_provider=payment_provider
+            db=db,
+            payer_id=payer_id,
+            plan_id=plan_id,
+            amount=amount,
+            transaction_type="subscription",
+            payment_provider=payment_provider
         )
-        
+
     @staticmethod
     async def create_razorpay_order_transaction(
         db: AsyncSession,
@@ -118,39 +117,44 @@ class PaymentService:
         course_id: str | None = None,
     ):
         transaction = PaymentTransaction(
-        payer_id=payer_id,
-        amount=amount,
-        transaction_type="subscription" if plan_id else "course_purchase",
-        payment_provider="razorpay",
-        provider_order_id=order_id,
-        plan_id=plan_id,
-        course_id=course_id,
-        status="created"
+            payer_id=payer_id,
+            amount=amount,
+            transaction_type=(
+                "subscription"
+                if plan_id
+                else "course_purchase"
+            ),
+            payment_provider="razorpay",
+            provider_order_id=order_id,
+            plan_id=plan_id,
+            course_id=course_id,
+            commission_amount=0,
+            creator_amount=0,
+            status="created"
         )
 
         db.add(transaction)
-
-        await db.commit()
+        await db.flush()
         await db.refresh(transaction)
 
         return transaction
-    
+
     @staticmethod
     async def create_course_purchase_transaction(
         db: AsyncSession,
         payer_id: str,
         payee_id: str,
         amount: int,
-        commission_amount: int
+        commission_amount: int,
+        creator_amount: int
     ):
-        
         return await PaymentService.create_transaction(
             db=db,
             payer_id=payer_id,
             payee_id=payee_id,
             amount=amount,
             commission_amount=commission_amount,
+            creator_amount=creator_amount,
             transaction_type="course_purchase",
             payment_provider="manual"
         )
-    

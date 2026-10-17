@@ -1,4 +1,6 @@
+
 import asyncio
+import os
 from datetime import datetime
 
 from sqlalchemy import select
@@ -9,6 +11,7 @@ from core import (
     hash_password,
     trial_premium_until,
     generate_referral_code,
+    IS_DEVELOPMENT,
 )
 
 from models.user import User
@@ -26,24 +29,26 @@ from models.xp_event import XPEvent
 
 from seed_subscription_plans import seed_subscription_plans
 
+
 ADMIN_EMAIL = "admin@skiller.app"
-ADMIN_PASSWORD = "Admin@123"
+ADMIN_PASSWORD = os.getenv("SEED_ADMIN_PASSWORD", "")
 
 CREATOR_EMAIL = "creator@skiller.app"
-CREATOR_PASSWORD = "Creator@123"
+CREATOR_PASSWORD = os.getenv("SEED_CREATOR_PASSWORD", "")
 
 STUDENT_EMAIL = "student@skiller.app"
-STUDENT_PASSWORD = "Student@123"
+STUDENT_PASSWORD = os.getenv("SEED_STUDENT_PASSWORD", "")
 
 INSTITUTION_EMAIL = "institution@skiller.app"
-INSTITUTION_PASSWORD = "Institution@123"
+INSTITUTION_PASSWORD = os.getenv("SEED_INSTITUTION_PASSWORD", "")
+
 
 async def get_user_by_email(db, email: str):
     result = await db.execute(
         select(User).where(User.email == email)
     )
-
     return result.scalar_one_or_none()
+
 
 async def create_user(
     db,
@@ -54,10 +59,7 @@ async def create_user(
     password,
     role,
 ):
-    existing = await get_user_by_email(
-        db,
-        email
-    )
+    existing = await get_user_by_email(db, email)
 
     if existing:
         print(f"✓ {email} already exists")
@@ -83,24 +85,17 @@ async def create_user(
     )
 
     db.add(user)
-
     await db.commit()
     await db.refresh(user)
 
     print(f"✓ Created {email}")
-
     return user
 
-async def create_wallet(
-    db,
-    owner,
-):
-    result = await db.execute(
-        select(Wallet).where(
-            Wallet.owner_id == owner.id
-        )
-    )
 
+async def create_wallet(db, owner):
+    result = await db.execute(
+        select(Wallet).where(Wallet.owner_id == owner.id)
+    )
     wallet = result.scalar_one_or_none()
 
     if wallet:
@@ -115,24 +110,19 @@ async def create_wallet(
     )
 
     db.add(wallet)
-
     await db.commit()
     await db.refresh(wallet)
 
     print(f"✓ Wallet created for {owner.username}")
-
     return wallet
 
-async def create_trial_subscription(
-    db,
-    user,
-):
+
+async def create_trial_subscription(db, user):
     result = await db.execute(
         select(Subscription).where(
             Subscription.user_id == user.id
         )
     )
-
     subscription = result.scalar_one_or_none()
 
     if subscription:
@@ -149,16 +139,14 @@ async def create_trial_subscription(
     )
 
     db.add(subscription)
-
     await db.commit()
     await db.refresh(subscription)
 
     print(f"✓ Trial subscription created for {user.username}")
-
     return subscription
 
-async def seed_users(db):
 
+async def seed_users(db):
     print("\n========== USERS ==========\n")
 
     admin = await create_user(
@@ -207,18 +195,12 @@ async def seed_users(db):
     print("\n========== WALLETS ==========\n")
 
     for user in users:
-        await create_wallet(
-            db,
-            user,
-        )
+        await create_wallet(db, user)
 
     print("\n========== TRIAL SUBSCRIPTIONS ==========\n")
 
     for user in [creator, institution]:
-        await create_trial_subscription(
-            db,
-            user,
-        )
+        await create_trial_subscription(db, user)
 
     return {
         "admin": admin,
@@ -226,19 +208,15 @@ async def seed_users(db):
         "student": student,
         "institution": institution,
     }
-    
-async def create_demo_follow(
-    db,
-    student,
-    creator,
-):
+
+
+async def create_demo_follow(db, student, creator):
     result = await db.execute(
         select(UserFollow).where(
             UserFollow.follower_id == student.id,
             UserFollow.following_id == creator.id,
         )
     )
-
     follow = result.scalar_one_or_none()
 
     if follow:
@@ -250,22 +228,17 @@ async def create_demo_follow(
     )
 
     db.add(follow)
-
     await db.commit()
 
     print("✓ Demo follow relationship created")
-    
-async def award_demo_xp(
-    db,
-    user,
-):
 
+
+async def award_demo_xp(db, user):
     result = await db.execute(
         select(XPEvent).where(
             XPEvent.user_id == user.id
         )
     )
-
     existing = result.scalars().first()
 
     if existing:
@@ -277,28 +250,21 @@ async def award_demo_xp(
         user_id=user.id,
         reason="seed",
         amount=100,
-        meta={
-            "source": "seed.py"
-        }
+        meta={"source": "seed.py"},
     )
 
     db.add(event)
-
     await db.commit()
 
     print(f"✓ XP awarded to {user.username}")
-    
-async def seed_course(
-    db,
-    creator,
-):
 
+
+async def seed_course(db, creator):
     result = await db.execute(
         select(Course).where(
             Course.title == "Python Masterclass"
         )
     )
-
     course = result.scalar_one_or_none()
 
     if course:
@@ -311,34 +277,30 @@ async def seed_course(
         description="Complete Python Course",
         price=1000,
         lessons=10,
-        thumbnail="https://images.unsplash.com/photo-1519408469771-2586093c3f14?w=1200&q=80",
+        thumbnail=(
+            "https://images.unsplash.com/"
+            "photo-1519408469771-2586093c3f14?w=1200&q=80"
+        ),
         category="Programming",
         rating=5.0,
         students=0,
     )
 
     db.add(course)
-
     await db.commit()
     await db.refresh(course)
 
     print("✓ Demo course created")
-
     return course
 
-async def seed_enrollment(
-    db,
-    student,
-    course,
-):
 
+async def seed_enrollment(db, student, course):
     result = await db.execute(
         select(Enrollment).where(
             Enrollment.user_id == student.id,
             Enrollment.course_id == course.id,
         )
     )
-
     enrollment = result.scalar_one_or_none()
 
     if enrollment:
@@ -351,26 +313,19 @@ async def seed_enrollment(
     )
 
     db.add(enrollment)
-
     course.students += 1
-
     await db.commit()
 
     print("✓ Demo enrollment created")
-
     return enrollment
 
-async def seed_gig(
-    db,
-    creator,
-):
 
+async def seed_gig(db, creator):
     result = await db.execute(
         select(Gig).where(
             Gig.title == "Build a React Website"
         )
     )
-
     gig = result.scalar_one_or_none()
 
     if gig:
@@ -389,32 +344,25 @@ async def seed_gig(
         skills=[
             "React",
             "JavaScript",
-            "CSS"
-        ]
+            "CSS",
+        ],
     )
 
     db.add(gig)
-
     await db.commit()
     await db.refresh(gig)
 
     print("✓ Demo gig created")
-
     return gig
 
-async def seed_application(
-    db,
-    student,
-    gig,
-):
 
+async def seed_application(db, student, gig):
     result = await db.execute(
         select(Application).where(
             Application.user_id == student.id,
             Application.gig_id == gig.id,
         )
     )
-
     application = result.scalar_one_or_none()
 
     if application:
@@ -430,25 +378,19 @@ async def seed_application(
     )
 
     db.add(application)
-
     await db.commit()
 
     print("✓ Demo application created")
-    
-async def seed_payment(
-    db,
-    student,
-    creator,
-    course,
-):
+    return application
 
+
+async def seed_payment(db, student, creator, course):
     result = await db.execute(
         select(PaymentTransaction).where(
             PaymentTransaction.transaction_type == "course_purchase",
             PaymentTransaction.payer_id == student.id,
         )
     )
-
     transaction = result.scalar_one_or_none()
 
     if transaction:
@@ -465,22 +407,17 @@ async def seed_payment(
     )
 
     db.add(transaction)
-
     await db.commit()
 
     print("✓ Demo payment created")
-    
-async def seed_wallet_credit(
-    db,
-    creator,
-):
 
+
+async def seed_wallet_credit(db, creator):
     result = await db.execute(
         select(Wallet).where(
             Wallet.owner_id == creator.id
         )
     )
-
     wallet = result.scalar_one()
 
     if wallet.balance > 0:
@@ -497,12 +434,36 @@ async def seed_wallet_credit(
     )
 
     db.add(ledger)
-
     await db.commit()
 
     print("✓ Wallet credited")
-    
+
+
 async def seed():
+    # Never run demo seeding in production.
+    if not IS_DEVELOPMENT:
+        raise RuntimeError(
+            "Database seeding is disabled outside development."
+        )
+
+    required_passwords = {
+        "SEED_ADMIN_PASSWORD": ADMIN_PASSWORD,
+        "SEED_CREATOR_PASSWORD": CREATOR_PASSWORD,
+        "SEED_STUDENT_PASSWORD": STUDENT_PASSWORD,
+        "SEED_INSTITUTION_PASSWORD": INSTITUTION_PASSWORD,
+    }
+
+    missing = [
+        name
+        for name, value in required_passwords.items()
+        if not value.strip()
+    ]
+
+    if missing:
+        raise RuntimeError(
+            "Missing required seed password environment variables: "
+            + ", ".join(missing)
+        )
 
     print("\n==============================")
     print("SKILLER POSTGRES SEED")
@@ -511,7 +472,6 @@ async def seed():
     await seed_subscription_plans()
 
     async with AsyncSessionLocal() as db:
-
         users = await seed_users(db)
 
         await create_demo_follow(
@@ -562,7 +522,7 @@ async def seed():
     print("\n==============================")
     print("DATABASE SEEDED SUCCESSFULLY")
     print("==============================")
-    
+
+
 if __name__ == "__main__":
     asyncio.run(seed())
-    

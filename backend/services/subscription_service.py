@@ -1,6 +1,7 @@
+
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.subscription import Subscription
@@ -108,6 +109,7 @@ class SubscriptionService:
         subscription.status = "expired"
 
         await db.commit()
+        await db.refresh(subscription)
 
         return subscription
 
@@ -116,7 +118,9 @@ class SubscriptionService:
         subscription: Subscription
     ) -> bool:
         return (
-            subscription.status in ["trial", "active"]
+            subscription is not None
+            and subscription.status in ["trial", "active"]
+            and subscription.expires_at is not None
             and subscription.expires_at > datetime.utcnow()
         )
 
@@ -140,7 +144,10 @@ class SubscriptionService:
     ):
         result = await db.execute(
             select(SubscriptionPlan).where(
-                SubscriptionPlan.code == code
+                or_(
+                    SubscriptionPlan.code == code,
+                    SubscriptionPlan.id == code
+                )
             )
         )
 
@@ -154,7 +161,7 @@ class SubscriptionService:
         query = (
             select(SubscriptionPlan)
             .where(
-                SubscriptionPlan.is_active == True
+                SubscriptionPlan.is_active.is_(True)
             )
         )
 
@@ -166,3 +173,25 @@ class SubscriptionService:
         result = await db.execute(query)
 
         return result.scalars().all()
+
+    @staticmethod
+    async def cancel_subscription(
+        db: AsyncSession,
+        user_id: str
+    ):
+        subscription = await SubscriptionService.get_subscription_by_user(
+            db,
+            user_id
+        )
+
+        if not subscription:
+            return None
+
+        subscription.status = "cancelled"
+        subscription.auto_renew = False
+        subscription.expires_at = datetime.utcnow()
+
+        await db.commit()
+        await db.refresh(subscription)
+
+        return subscription

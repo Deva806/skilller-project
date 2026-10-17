@@ -1,79 +1,119 @@
-import uuid
+
 from datetime import datetime
-from decimal import Decimal
-from sqlalchemy import String, Integer, DateTime, Numeric, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Numeric,
+    String,
+)
 
 from db.session import Base
 
 
 class Withdrawal(Base):
     __tablename__ = "withdrawals"
-    __table_args__ = (
-        UniqueConstraint(
-            "user_id",
-            "idempotency_key",
-            name="uq_withdrawals_user_idempotency"
-        ),
-    )
 
-    id: Mapped[str] = mapped_column(
+    id = Column(
         String,
         primary_key=True,
-        default=lambda: str(uuid.uuid4())
+        index=True,
     )
 
-    user_id: Mapped[str] = mapped_column(
+    user_id = Column(
         String,
-        nullable=False
-    )
-
-    amount: Mapped[Decimal] = mapped_column(
-        Numeric(12,2),
-        nullable=False
-    )
-
-    status: Mapped[str] = mapped_column(
-        String,
+        ForeignKey("users.id"),
         nullable=False,
-        default="pending"
+        index=True,
     )
-    # pending = funds reserved and awaiting payout
-    # processing = payout provider is processing
-    # successful = payout confirmed
-    # failed = payout failed and funds released
 
-    requested_at: Mapped[datetime] = mapped_column(
+    amount = Column(
+        Numeric(12, 2),
+        nullable=False,
+    )
+
+    status = Column(
+        String(20),
+        nullable=False,
+        default="pending",
+        index=True,
+    )
+
+    requested_at = Column(
         DateTime,
-        default=datetime.utcnow
+        nullable=False,
+        default=datetime.utcnow,
     )
 
-    processed_at: Mapped[datetime] = mapped_column(
+    processed_at = Column(
         DateTime,
-        nullable=True
+        nullable=True,
     )
 
-    remarks: Mapped[str] = mapped_column(
+    remarks = Column(
         String,
-        nullable=True
-    )
-    
-    idempotency_key: Mapped[str] = mapped_column(
-        String,
-        nullable=True
+        nullable=True,
     )
 
-    payout_provider: Mapped[str] = mapped_column(
-        String,
-        nullable=True
+    idempotency_key = Column(
+        String(255),
+        nullable=True,
+        index=True,
     )
 
-    payout_reference: Mapped[str] = mapped_column(
-        String,
-        nullable=True
+    payout_provider = Column(
+        String(50),
+        nullable=True,
     )
 
-    failure_reason: Mapped[str] = mapped_column(
+    payout_reference = Column(
+        String(255),
+        nullable=True,
+    )
+
+    failure_reason = Column(
         String,
-        nullable=True
+        nullable=True,
+    )
+
+    # Snapshot of the payout destination at the time of the request.
+    # These fields allow the admin to see where the creator expects
+    # the payout to be sent, even if their saved payout account changes.
+    payout_method = Column(
+        String(20),
+        nullable=True,
+    )
+
+    account_holder_name = Column(
+        String(255),
+        nullable=True,
+    )
+
+    account_number = Column(
+        String(64),
+        nullable=True,
+    )
+
+    ifsc_code = Column(
+        String(11),
+        nullable=True,
+    )
+
+    upi_id = Column(
+        String(255),
+        nullable=True,
+    )
+
+    # True: the withdrawal amount is reserved from the creator's
+    # available wallet balance.
+    #
+    # False: a legacy/development test request was created without
+    # reserving wallet funds.
+    funds_reserved = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default="true",
     )

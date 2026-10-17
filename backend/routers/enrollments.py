@@ -6,10 +6,12 @@ from core import get_current_user
 
 from services.enrollment_service import EnrollmentService
 
+
 router = APIRouter(
     prefix="/api/enrollments",
     tags=["Enrollments"]
 )
+
 
 @router.get("/me")
 async def my_enrollments(

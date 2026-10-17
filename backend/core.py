@@ -36,7 +36,11 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALG = "HS256"
 APP_NAME = os.environ.get("APP_NAME", "skiller")
-APP_ENV = os.environ.get("APP_ENV", "development")  # "production" suppresses dev logs
+# Fail closed: an unset APP_ENV must never enable development-only behavior.
+APP_ENV = os.environ.get("APP_ENV", "production").strip().lower() or "production"
+IS_DEVELOPMENT = APP_ENV in {"dev", "development", "local"}
+PASSWORD_MIN_LENGTH = 8
+logger.info("Application environment: %s", APP_ENV)
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
@@ -67,12 +71,13 @@ def verify_password(pw: str, hashed: str) -> bool:
         return False
 
 
-def create_access_token(user_id: str, email: str) -> str:
+def create_access_token(user_id: str, email: str, token_version: int = 0) -> str:
     payload = {
         "sub": user_id,
         "email": email,
         "exp": now() + timedelta(days=7),
         "type": "access",
+        "ver": int(token_version),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
 
@@ -96,6 +101,17 @@ async def get_current_user(request: Request) -> dict:
         user = await get_user_by_id(payload["sub"])
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
+
+        # Tokens issued before token-version support are treated as version 0.
+        # Once the User model and migration are updated, incrementing the user's
+        # token_version invalidates all tokens carrying an older version.
+        token_version = int(user.get("token_version", 0) or 0)
+        token_version_in_token = int(payload.get("ver", 0) or 0)
+        if token_version_in_token != token_version:
+            raise HTTPException(
+                status_code=401,
+                detail="Session expired. Please sign in again.",
+            )
         return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
@@ -430,7 +446,7 @@ def get_object(path: str) -> tuple:
 # ---------- Models ----------
 class RegisterIn(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=6)
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH)
     name: str
     username: str
     role: str = "student"
@@ -454,8 +470,10 @@ class ForgotPasswordIn(BaseModel):
 
 
 class ResetPasswordIn(BaseModel):
-    token: str
-    new_password: str = Field(min_length=6)
+    token: Optional[str] = None
+    email: Optional[str] = None
+    otp: Optional[str] = None
+    new_password: str = Field(min_length=PASSWORD_MIN_LENGTH)
 
 
 class PostCreate(BaseModel):
@@ -546,7 +564,7 @@ class LessonUpdate(BaseModel):
 class CourseCreate(BaseModel):
     title: str
     description: str
-    price: int = 0
+    price: int = Field(default=0, ge=0)
 
     thumbnail: str = ""
     category: str = "General"
@@ -556,7 +574,7 @@ class CourseCreate(BaseModel):
 class CourseUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    price: Optional[int] = None
+    price: Optional[int] = Field(default=None, ge=0)
     lessons: Optional[int] = None
     thumbnail: Optional[str] = None
     category: Optional[str] = None

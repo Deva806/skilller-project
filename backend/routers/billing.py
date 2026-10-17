@@ -183,17 +183,56 @@ async def get_plans(current=Depends(get_current_user),
                     db: AsyncSession = Depends(get_db)):
     plans = await SubscriptionService.get_active_plans(db, current["role"])
 
+    DEFAULT_PERKS = {
+        "creator": [
+            "Create & sell courses",
+            "Post gigs & hire talent",
+            "Full creator insights & analytics",
+            "Priority creator support",
+        ],
+        "institution": [
+            "Unlimited courses & batch enrollment",
+            "Organization management tools",
+            "Institution insights & financial reports",
+            "Dedicated account manager",
+        ],
+    }
+
     return {
         "plans": [
             {
                 "id": plan.id,
                 "name": plan.name,
                 "user_type": plan.user_type,
-                "price": plan.price,
-                "duration_days": plan.duration_days
+                "price_inr": plan.price,
+                "duration_days": plan.duration_days,
+                "max_courses": plan.max_courses,
+                "active": True,
+                "perks": DEFAULT_PERKS.get(plan.user_type, [
+                    "All platform tools unlocked",
+                    "Course creation enabled",
+                    "Priority support"
+                ]),
             }
             for plan in plans
         ]
+    }
+
+
+@router.post("/cancel")
+async def cancel_subscription(
+    current=Depends(get_current_user),
+    pg_db: AsyncSession = Depends(get_db)
+):
+    sub = await SubscriptionService.cancel_subscription(pg_db, current["id"])
+    user = await UserService.get_user(pg_db, current["id"])
+    if user:
+        await UserService.update_plan(pg_db, user, "free", datetime.utcnow())
+
+    return {
+        "ok": True,
+        "status": "cancelled",
+        "message": "Subscription cancelled cleanly."
     }
 
 
@@ -213,6 +252,15 @@ async def my_subscription(
             detail="User not found"
         )
 
+    # Check postgres subscription
+    sub = await SubscriptionService.get_subscription_by_user(pg_db, current["id"])
+    is_active_sub = False
+    plan_name = user.plan
+    if sub:
+        is_active_sub = SubscriptionService.is_subscription_active(sub)
+        if sub.status == "cancelled":
+            is_active_sub = False
+
     until = user.premium_until
 
     days_left = 0
@@ -225,17 +273,21 @@ async def my_subscription(
             (parsed - now()).days
         )
 
+    is_premium = bool((parsed and parsed > now()) or is_active_sub)
+    if sub and sub.status == "cancelled":
+        is_premium = False
+        days_left = 0
+
     return {
-        "plan": user.plan,
+        "plan": plan_name if is_premium else "free",
+        "subscription_status": sub.status if sub else ("active" if is_premium else "none"),
         "premium_until": (
             until.isoformat()
             if until
             else None
         ),
-        "is_premium": (
-        bool(parsed and parsed > now())
-        ),
-        "days_left": days_left,
+        "is_premium": is_premium,
+        "days_left": days_left if is_premium else 0,
     }
 
 
