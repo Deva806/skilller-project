@@ -356,8 +356,8 @@ async def register(
 # ============================================================
 # VERIFY REGISTRATION OTP
 # ============================================================
-@limiter.limit("10/minute")
 @router.post("/verify-registration-otp")
+@limiter.limit("10/minute")
 async def verify_registration_otp(
     request: Request,
     data: VerifyRegistrationOTPIn,
@@ -720,9 +720,9 @@ async def verify_email(
 # ============================================================
 # LOGIN - STEP 1: VERIFY PASSWORD, SEND LOGIN OTP
 # ============================================================
+@router.post("/login")
 @limiter.limit("20/hour")
 @limiter.limit("5/minute")
-@router.post("/login")
 async def login(
     request: Request,
     data: LoginIn,
@@ -844,8 +844,8 @@ async def login(
         "email": email,
         "message": "Login OTP sent to your email",
     }
-@limiter.limit("10/minute")
 @router.post("/verify-login-otp")
+@limiter.limit("10/minute")
 async def verify_login_otp(
     request: Request,
     data: VerifyLoginOTPIn,
@@ -893,9 +893,9 @@ async def verify_login_otp(
 # ============================================================
 # RESEND LOGIN OTP
 # ============================================================
+@router.post("/resend-login-otp")
 @limiter.limit("20/hour")
 @limiter.limit("5/minute")
-@router.post("/resend-login-otp")
 async def resend_login_otp(
     request: Request,
     data: ResendLoginOTPIn,
@@ -998,9 +998,9 @@ async def me(
 # Step 2: email + OTP -> short-lived reset_token
 # Step 3: reset_token + new_password -> password changed
 # ============================================================
+@router.post("/forgot-password")
 @limiter.limit("20/hour")
 @limiter.limit("5/minute")
-@router.post("/forgot-password")
 async def forgot_password(
     request: Request,
     data: ForgotPasswordIn,
@@ -1043,8 +1043,8 @@ async def forgot_password(
         "ok": True,
         "message": "If that email exists, a verification code has been sent.",
     }
-@limiter.limit("10/minute")
 @router.post("/verify-reset-otp")
+@limiter.limit("10/minute")
 async def verify_reset_otp(
     request: Request,
     data: VerifyResetOTPIn,
