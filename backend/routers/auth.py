@@ -157,6 +157,23 @@ async def register(
     # --------------------------------------------------------
     existing_user = await UserService.get_user_by_email(pg_db, email)
     if existing_user:
+        # In explicitly configured development mode, allow an existing
+        # unverified account to continue without registration OTP.
+        if IS_DEVELOPMENT and not existing_user.email_verified:
+            await UserService.update_user(
+                pg_db,
+                existing_user,
+                {"email_verified": True},
+            )
+            existing_user.email_verified = True
+            token = _create_user_access_token(existing_user)
+            return {
+                "otp_required": False,
+                "token": token,
+                "user": await get_user_by_id(existing_user.id),
+                "message": "Development registration successful",
+            }
+
         if existing_user.email_verified:
             raise HTTPException(
                 status_code=400,
@@ -276,6 +293,25 @@ async def register(
             "status": "pending",
             "created_at": now_iso(),
         })
+    # --------------------------------------------------------
+    # Development mode: skip registration OTP.
+    # Production keeps the existing email OTP verification flow.
+    # --------------------------------------------------------
+    if IS_DEVELOPMENT:
+        await UserService.update_user(
+            pg_db,
+            user,
+            {"email_verified": True},
+        )
+        user.email_verified = True
+        token = _create_user_access_token(user)
+        return {
+            "otp_required": False,
+            "token": token,
+            "user": await get_user_by_id(user.id),
+            "message": "Development registration successful",
+        }
+
     # --------------------------------------------------------
     # Generate and send registration OTP
     # --------------------------------------------------------
@@ -1319,3 +1355,4 @@ async def change_password(
         {"$set": {"used": True}},
     )
     return {"ok": True, "message": "Password changed successfully"}
+
