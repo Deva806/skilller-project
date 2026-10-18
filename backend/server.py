@@ -87,6 +87,11 @@ async def rate_limit_exceeded_handler(
 ) -> JSONResponse:
     """Return a consistent response when a rate limit is exceeded."""
 
+    logger.warning(
+        "Rate limit exceeded for path %s",
+        request.url.path,
+    )
+
     return JSONResponse(
         status_code=429,
         content={
@@ -104,7 +109,7 @@ async def rate_limit_exceeded_handler(
 
 app = FastAPI(title="Skiller API")
 
-# Register the shared SlowAPI limiter exactly once.
+# Register the shared SlowAPI limiter.
 app.state.limiter = limiter
 
 app.add_exception_handler(
@@ -143,8 +148,6 @@ app.include_router(wallets.router)
 
 # Creator withdrawal requests.
 app.include_router(withdrawals.router)
-
-# Admin withdrawal list and PATCH approve/reject endpoints.
 
 # Enrollments and lessons.
 app.include_router(enrollments_router)
@@ -205,9 +208,10 @@ async def startup():
         logger.exception("Storage initialization failed")
         raise
 
-    # Restore the project's original VAPID initialization here
-    # if the application requires it. The original initialization
-    # code was not included in the supplied server.py.
+    # IMPORTANT:
+    # Preserve and restore any VAPID initialization from your
+    # original server.py if push notifications require it.
+    # That code was not present in the supplied source.
 
 
 # ============================================================
@@ -240,3 +244,4 @@ async def health_check():
         "status": "ok",
         "environment": APP_ENV,
     }
+
