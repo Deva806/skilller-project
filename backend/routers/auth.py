@@ -4,7 +4,7 @@ import uuid
 import logging
 import secrets
 from datetime import date, datetime, timedelta
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from pydantic import BaseModel, EmailStr, Field
 from core import (
     db,
@@ -396,6 +396,7 @@ async def register(
 @limiter.limit("10/minute")
 async def verify_registration_otp(
     request: Request,
+    response: Response,
     data: VerifyRegistrationOTPIn,
     pg_db: AsyncSession = Depends(get_db)
 ):
@@ -761,6 +762,7 @@ async def verify_email(
 @limiter.limit("5/minute")
 async def login(
     request: Request,
+    response: Response,
     data: LoginIn,
     pg_db: AsyncSession = Depends(get_db)
 ):
@@ -884,6 +886,7 @@ async def login(
 @limiter.limit("10/minute")
 async def verify_login_otp(
     request: Request,
+    response: Response,
     data: VerifyLoginOTPIn,
     pg_db: AsyncSession = Depends(get_db)
 ):
@@ -934,6 +937,7 @@ async def verify_login_otp(
 @limiter.limit("5/minute")
 async def resend_login_otp(
     request: Request,
+    response: Response,
     data: ResendLoginOTPIn,
     pg_db: AsyncSession = Depends(get_db)
 ):
@@ -1039,6 +1043,7 @@ async def me(
 @limiter.limit("5/minute")
 async def forgot_password(
     request: Request,
+    response: Response,
     data: ForgotPasswordIn,
     pg_db: AsyncSession = Depends(get_db)
 ):
@@ -1083,6 +1088,7 @@ async def forgot_password(
 @limiter.limit("10/minute")
 async def verify_reset_otp(
     request: Request,
+    response: Response,
     data: VerifyResetOTPIn,
     pg_db: AsyncSession = Depends(get_db)
 ):
